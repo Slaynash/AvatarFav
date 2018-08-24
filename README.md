@@ -1,4 +1,4 @@
-# VRCTools
+# AvatarFav
 A VRChat mod to add a favorite list of avatar to the game
 
 Current features:
@@ -14,7 +14,7 @@ Installation
 ---
 Before install:
 - **Tupper (from VRChat Team) said that any modification of the game can lead to a ban, as with this mod**
-- You need to know that this program has not been validated by the VRChat team, but they don't seems to care if someone use it
+- You need to know that this mod has not been validated by the VRChat team, but they don't seems to care if someone use it
 
 To install this mod, you will need to install [VRCModLoader](https://github.com/Slaynash/VRCModLoader).<br>
 Currently this mod is automatically installed during the setup of VRCModLoader to your "Mods" folder in your game directory.
