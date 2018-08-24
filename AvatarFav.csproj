@@ -51,8 +51,7 @@
     <Compile Include="IL\ILParser.cs" />
     <Compile Include="AvatarFavMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ServerUtils\ReturnCodes.cs" />
-    <Compile Include="ServerUtils\SerializableApiAvatar.cs" />
+    <Compile Include="SerializableApiAvatar.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VRCTools\VRCTools.csproj">
