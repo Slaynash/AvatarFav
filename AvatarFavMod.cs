@@ -47,7 +47,7 @@ namespace AvatarFav
 
         void OnLevelWasLoaded(int level)
         {
-            Console.WriteLine("[AvatarFaV] OnLevelWasLoaded (" + level + ")");
+            Console.WriteLine("[AvatarFav] OnLevelWasLoaded (" + level + ")");
             if (level == 1 && !alreadyLoaded)
             {
                 alreadyLoaded = true;
@@ -58,12 +58,19 @@ namespace AvatarFav
                     return;
                 }
                 instance = this;
-                Console.WriteLine("Adding button to UI - Looking up for Change Button");
+                Console.WriteLine("[AvatarFav] Getting game version");
+                PropertyInfo vrcApplicationSetupInstanceProperty = typeof(VRCApplicationSetup).GetProperties(BindingFlags.Public | BindingFlags.Static).First((pi) => pi.PropertyType == typeof(VRCApplicationSetup));
+                Console.WriteLine("[AvatarFav] Adding button to UI - Looking up for Change Button");
                 // Add a "Favorite" / "Unfavorite" button over the "Choose" button of the AvatarPage
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[1];
+                int buildNumber = -1;
+                if (vrcApplicationSetupInstanceProperty != null) buildNumber = ((VRCApplicationSetup)vrcApplicationSetupInstanceProperty.GetValue(null, null)).buildNumber;
+                VRCModLogger.Log("[AvatarFav] Game build " + buildNumber);
+                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(vrcApplicationSetupInstanceProperty != null && buildNumber < 623 ) ? 1 : 0];
                 Transform changeButton = pageAvatar.transform.Find("Change Button");
 
-                Console.WriteLine("Adding button to UI - Duplicating Button");
+                //PrintHierarchy(pageAvatar.transform, 0);
+
+                Console.WriteLine("[AvatarFav] Adding button to UI - Duplicating Button");
                 favButton = DuplicateButton(changeButton, "Favorite", new Vector2(0, 80));
                 favButton.name = "ToggleFavorite";
                 favButton.gameObject.SetActive(false);
@@ -72,38 +79,38 @@ namespace AvatarFav
 
                 favButton.GetComponent<Button>().onClick.AddListener(ToggleAvatarFavorite);
 
-                Console.WriteLine("Storing default AvatarModel position");
+                Console.WriteLine("[AvatarFav] Storing default AvatarModel position");
                 avatarModel = pageAvatar.transform.Find("AvatarModel");
                 baseAvatarModelPosition = avatarModel.localPosition;
 
 
 
-                Console.WriteLine("Looking up for dev avatar list");
+                Console.WriteLine("[AvatarFav] Looking up for dev avatar list");
                 UiAvatarList[] uiAvatarLists = Resources.FindObjectsOfTypeAll<UiAvatarList>();
 
-                Console.WriteLine("Found " + uiAvatarLists.Length + " UiAvatarList");
+                Console.WriteLine("[AvatarFav] Found " + uiAvatarLists.Length + " UiAvatarList");
 
                 // Get "developper" list as favList
                 FieldInfo categoryField = typeof(UiAvatarList).GetField("category", BindingFlags.Public | BindingFlags.Instance);
                 favList = uiAvatarLists.First((list) => (int)categoryField.GetValue(list) == 0);
 
-                Console.WriteLine("Updating list name and activating");
+                Console.WriteLine("[AvatarFav] Updating list name and activating");
                 // Enable list and change name
                 favList.GetComponentInChildren<Button>(true).GetComponentInChildren<Text>().text = "Favorite";
                 favList.gameObject.SetActive(true);
 
-                Console.WriteLine("Moving list to the first in siblings hierarchy");
+                Console.WriteLine("[AvatarFav] Moving list to the first in siblings hierarchy");
                 // Set siblings index to first
                 favList.transform.SetAsFirstSibling();
 
                 // Get "UpdateAvatarList" method
-                Console.WriteLine("Looking up for UpdateAvatar methods");
+                Console.WriteLine("[AvatarFav] Looking up for UpdateAvatar methods");
                 var tmp1 = typeof(UiAvatarList).GetMethods(BindingFlags.Instance | BindingFlags.NonPublic).Where((m) =>
                 {
                     ParameterInfo[] parameters = m.GetParameters();
                     return parameters.Length == 1 && parameters.First().ParameterType == typeof(List<ApiAvatar>);
                 });
-                Console.WriteLine("Looking up for the real UpdateAvatar method (Found " + tmp1.ToList().Count + " mathching methods)");
+                Console.WriteLine("[AvatarFav] Looking up for the real UpdateAvatar method (Found " + tmp1.ToList().Count + " mathching methods)");
                 updateAvatarListMethod = tmp1.First((m) =>
                 {
                     return m.Parse().Any((i) =>
@@ -112,7 +119,7 @@ namespace AvatarFav
                     });
                 });
 
-                Console.WriteLine("Disabling dev check of PageAvatar");
+                Console.WriteLine("[AvatarFav] Disabling dev check of PageAvatar");
                 // Disable "dev" check of PageAvatar (to remove auto-disable of the list)
                 typeof(PageAvatar)
                     .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
@@ -169,7 +176,7 @@ namespace AvatarFav
                     }
                 });
 
-                Console.WriteLine("AvatarFavPlugin Initialised !");
+                Console.WriteLine("[AvatarFav] AvatarFav Initialised !");
                 initialised = true;
             }
         }
@@ -401,5 +408,32 @@ namespace AvatarFav
         }
         private void AddAvatar(string id) => new Thread(() => VRCModNetworkManager.SendRPC("slaynash.avatarfav.addavatar", id)).Start();
         private void RemoveAvatar(string id) => new Thread(() => VRCModNetworkManager.SendRPC("slaynash.avatarfav.removeavatar", id)).Start();
+
+
+        // DEBUG
+
+        private void PrintHierarchy(Transform transform, int depth)
+        {
+            String s = "";
+            for (int i = 0; i < depth; i++) s += "\t";
+            s += transform.name + " [";
+
+            MonoBehaviour[] mbs = transform.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < mbs.Length; i++)
+            {
+                if (mbs[i] == null) continue;
+                if (i == 0)
+                    s += mbs[i].GetType();
+                else
+                    s += ", " + mbs[i].GetType();
+            }
+
+            s += "]";
+            VRCModLogger.Log(s);
+            foreach (Transform t in transform)
+            {
+                if (t != null) PrintHierarchy(t, depth + 1);
+            }
+        }
     }
 }
