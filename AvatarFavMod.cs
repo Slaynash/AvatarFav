@@ -48,6 +48,7 @@ namespace AvatarFav
         private string addError;
 
         private Button.ButtonClickedEvent baseChooseEvent;
+        private int lastPickerCound = 0;
 
         void OnLevelWasLoaded(int level)
         {
@@ -216,12 +217,13 @@ namespace AvatarFav
                             UpdateFavList();
                             freshUpdate = true;
                         }
-                        if(favList.pickers.Count == 0)
+                        if(favList.pickers.Count == 0 || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count))
                         {
                             VRCModLogger.Log("[AvatarFav] Picker count in favlist mismatch. Updating favlist (" + favList.pickers.Count + " vs " + favoriteAvatarList.Count + ")");
                             UpdateFavList();
                             freshUpdate = true;
                         }
+                        lastPickerCound = favList.pickers.Count;
                     }
                 }
 
@@ -289,8 +291,9 @@ namespace AvatarFav
                 {
                     try
                     {
+                        string uuid = APIUser.CurrentUser?.id ?? "";
                         SerializableApiAvatar aa = JsonConvert.DeserializeObject<SerializableApiAvatar>(avtrRequest.text);
-                        if (aa.releaseStatus.Equals("public"))
+                        if (aa.releaseStatus.Equals("public") || aa.authorId.Equals(uuid))
                         {
                             VRCModLogger.Log("[AvatarFav] Invoking baseChooseEvent (" + baseChooseEvent + ")");
                             baseChooseEvent.Invoke();
