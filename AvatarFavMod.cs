@@ -1,4 +1,6 @@
-﻿using Newtonsoft.Json;
+﻿extern alias VRCCoreEditor;
+
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,8 +14,8 @@ using UnityEngine.UI;
 using VRC.Core;
 using VRC.UI;
 using VRCModLoader;
+using VRCModNetwork;
 using VRCTools;
-using VRCTools.networking;
 
 namespace AvatarFav
 {
@@ -217,7 +219,7 @@ namespace AvatarFav
                             UpdateFavList();
                             freshUpdate = true;
                         }
-                        if(favList.pickers.Count == 0 || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count))
+                        if((favList.pickers.Count == 0 && favoriteAvatarList.Count != 0) || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count))
                         {
                             VRCModLogger.Log("[AvatarFav] Picker count in favlist mismatch. Updating favlist (" + favList.pickers.Count + " vs " + favoriteAvatarList.Count + ")");
                             UpdateFavList();
@@ -283,35 +285,52 @@ namespace AvatarFav
 
         private IEnumerator CheckAndWearAvatar()
         {
-            using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + pageAvatar.avatar.apiAvatar.id + "?apiKey=" + API.ApiKey))
+            VRCCoreEditor::VRC.Core.PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<VRCCoreEditor::VRC.Core.PipelineManager>();
+            if (avatarPipelineManager == null)
             {
-                yield return avtrRequest;
-                int rc = WebRequestsUtils.GetResponseCode(avtrRequest);
-                if (rc == 200)
+                VRCUiPopupManagerUtils.ShowPopup("Error", "Please wait for this avatar to finish loading before wearing it", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+            }
+            else
+            {
+                bool copied = false;
+
+                string avatarBlueprintID = avatarPipelineManager.blueprintId ?? "";
+                if (!avatarBlueprintID.Equals("") && !avatarBlueprintID.Equals(pageAvatar.avatar.apiAvatar.id))
+                    copied = true;
+
+                using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + (copied ? avatarBlueprintID : pageAvatar.avatar.apiAvatar.id) + "?apiKey=" + API.ApiKey))
                 {
-                    try
+                    yield return avtrRequest;
+                    int rc = WebRequestsUtils.GetResponseCode(avtrRequest);
+                    if (rc == 200)
                     {
-                        string uuid = APIUser.CurrentUser?.id ?? "";
-                        SerializableApiAvatar aa = JsonConvert.DeserializeObject<SerializableApiAvatar>(avtrRequest.text);
-                        if (aa.releaseStatus.Equals("public") || aa.authorId.Equals(uuid))
+                        try
                         {
-                            VRCModLogger.Log("[AvatarFav] Invoking baseChooseEvent (" + baseChooseEvent + ")");
-                            baseChooseEvent.Invoke();
+                            string uuid = APIUser.CurrentUser?.id ?? "";
+                            SerializableApiAvatar aa = JsonConvert.DeserializeObject<SerializableApiAvatar>(avtrRequest.text);
+                            if (aa.releaseStatus.Equals("public") || aa.authorId.Equals(uuid))
+                            {
+                                baseChooseEvent.Invoke();
+                            }
+                            else
+                            {
+                                if(copied)
+                                    VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not the original one, and the one is not public anymore (private)", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                                else VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not public anymore (private)", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                            }
                         }
-                        else
+                        catch (Exception e)
                         {
-                            VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not public anymore", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                            VRCModLogger.LogError(e.ToString());
+                            VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: Unable to parse API response", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
                         }
                     }
-                    catch (Exception e)
+                    else
                     {
-                        VRCModLogger.LogError(e.ToString());
-                        VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: Unable to parse API response", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                        if (copied)
+                            VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not the original one, and the one is not public anymore (deleted)", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                        else VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not public anymore (deleted)", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
                     }
-                }
-                else
-                {
-                    VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to put this avatar: This avatar is not public anymore", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
                 }
             }
         }
@@ -320,48 +339,6 @@ namespace AvatarFav
         {
             object[] parameters = new object[] { favoriteAvatarList };
             updateAvatarListMethod.Invoke(favList, parameters);
-
-
-            // Add API request before picking an avatar (avoid picking a private avatar)
-            for (int i = 0; i < favList.pickers.Count; i++)
-            {
-                int index = i;
-
-                VRCUiContentButton picker = favList.pickers[i];
-                Action baseAction = applyAvatarField.GetValue(picker) as Action;
-
-                ApiDictContainer responseContainer = new ApiDictContainer(new string[] { "releaseStatus" })
-                {
-                    OnSuccess = (c) =>
-                    {
-                        if (((ApiDictContainer)c).ResponseDictionary.TryGetValue("releaseStatus", out object releaseStatus))
-                        {
-                            VRCModLogger.Log("Server returned releaseStatus: " + releaseStatus);
-                            if ("public".Equals((string)releaseStatus))
-                            {
-                                baseAction();
-                            }
-                            else
-                            {
-                                VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to pick avatar: This avatar is now private", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
-                            }
-                        }
-                    },
-                    OnError = (c) =>
-                    {
-                        VRCModLogger.Log("Unable to fetch avatar releaseStatus from API");
-                        VRCUiPopupManagerUtils.ShowPopup("Error", "Unable to fetch favorited avatar from VRChat API", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
-                    }
-                };
-
-                Action newAction = () =>
-                {
-                    VRCModLogger.Log("Fetching avatar releaseStatus for " + favoriteAvatarList[index].name + " (" + favoriteAvatarList[index].id + ")");
-                    API.SendRequest("avatars/" + favoriteAvatarList[index].id, VRC.Core.BestHTTP.HTTPMethods.Get, responseContainer, null, true, true, true);
-                };
-
-                applyAvatarField.SetValue(picker, newAction);
-            }
         }
 
         private void ToggleAvatarFavorite()

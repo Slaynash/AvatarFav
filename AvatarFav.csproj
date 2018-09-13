@@ -47,6 +47,11 @@
     <Reference Include="UnityEngine.UI">
       <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.UI.dll</HintPath>
     </Reference>
+    <Reference Include="VRCCore-Editor, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRCTools\Dependencies\VRCCore-Editor.dll</HintPath>
+      <Aliases>VRCCoreEditor</Aliases>
+    </Reference>
     <Reference Include="VRCCore-Standalone, Version=0.0.0.0, Culture=neutral, PublicKeyToken=67033c44591afb45, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\VRCCore-Standalone.dll</HintPath>
