@@ -19,7 +19,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.0", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.1", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -285,8 +285,10 @@ namespace AvatarFav
 
         private IEnumerator CheckAndWearAvatar()
         {
+            //DebugUtils.PrintHierarchy(pageAvatar.avatar.transform, 0); // DEBUG
             VRCCoreEditor::VRC.Core.PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<VRCCoreEditor::VRC.Core.PipelineManager>();
-            if (avatarPipelineManager == null)
+            VRC.Core.PipelineManager avatarPipelineManager2 = pageAvatar.avatar.GetComponentInChildren<VRC.Core.PipelineManager>();
+            if (avatarPipelineManager == null && avatarPipelineManager2 == null)
             {
                 VRCUiPopupManagerUtils.ShowPopup("Error", "Please wait for this avatar to finish loading before wearing it", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
             }
@@ -294,7 +296,7 @@ namespace AvatarFav
             {
                 bool copied = false;
 
-                string avatarBlueprintID = avatarPipelineManager.blueprintId ?? "";
+                string avatarBlueprintID = avatarPipelineManager?.blueprintId ?? avatarPipelineManager2?.blueprintId ?? "";
                 if (!avatarBlueprintID.Equals("") && !avatarBlueprintID.Equals(pageAvatar.avatar.apiAvatar.id))
                     copied = true;
 
