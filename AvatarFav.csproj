@@ -63,6 +63,7 @@
     <Compile Include="AvatarFavMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SerializableApiAvatar.cs" />
+    <Compile Include="VRCheatAvatarfileImporter.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\VRCTools\VRCTools.csproj">

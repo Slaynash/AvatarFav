@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -19,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.1", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -29,7 +30,7 @@ namespace AvatarFav
 
         private static MethodInfo updateAvatarListMethod;
 
-        private static List<ApiAvatar> favoriteAvatarList = new List<ApiAvatar>();
+        internal static List<ApiAvatar> favoriteAvatarList = new List<ApiAvatar>();
         private static bool avatarAvailables = false;
         private bool freshUpdate = false;
         private bool waitingForServer = false;
@@ -91,8 +92,8 @@ namespace AvatarFav
 
 
 
-                VRCModLogger.Log("[AvatarFav] Adding button to UI - Duplicating Button");
-                favButton = DuplicateButton(changeButton, "Favorite", new Vector2(0, 80));
+                VRCModLogger.Log("[AvatarFav] Adding favorite button to UI - Duplicating Button");
+                favButton = UnityUiUtils.DuplicateButton(changeButton, "Favorite", new Vector2(0, 80));
                 favButton.name = "ToggleFavorite";
                 favButton.gameObject.SetActive(false);
                 favButtonText = favButton.Find("Text").GetComponent<Text>();
@@ -104,6 +105,31 @@ namespace AvatarFav
                 avatarModel = pageAvatar.transform.Find("AvatarModel");
                 baseAvatarModelPosition = avatarModel.localPosition;
 
+
+                if (File.Exists("VRChat_Data\\Managed\\VRLoader\\Modules\\Avatars.txt"))
+                {
+
+                    VRCModLogger.Log("[AvatarFav] Adding import button to UI - Duplicating Button");
+                    Transform importButton = UnityUiUtils.DuplicateButton(changeButton, "Import Avatars", new Vector2(0, 0));
+                    importButton.name = "ImportAvatars";
+
+                    importButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(560, 371);
+
+                    importButton.GetComponent<Button>().onClick.AddListener(() =>
+                    {
+                        VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Do you want to import the public avatars from your VRCheat avatar list ?",
+                        "Yes", () =>
+                        {
+                            ModManager.StartCoroutine(VRCheatAvatarfileImporter.ImportAvatarfile());
+                        },
+                        "No", () =>
+                        {
+                            VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup();
+                        });
+                        VRCheatAvatarfileImporter.ImportAvatarfile();
+                    });
+
+                }
 
 
                 VRCModLogger.Log("[AvatarFav] Looking up for dev avatar list");
@@ -219,7 +245,7 @@ namespace AvatarFav
                             UpdateFavList();
                             freshUpdate = true;
                         }
-                        if((favList.pickers.Count == 0 && favoriteAvatarList.Count != 0) || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count))
+                        if(!VRCheatAvatarfileImporter.Importing && ((favList.pickers.Count == 0 && favoriteAvatarList.Count != 0) || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count)))
                         {
                             VRCModLogger.Log("[AvatarFav] Picker count in favlist mismatch. Updating favlist (" + favList.pickers.Count + " vs " + favoriteAvatarList.Count + ")");
                             UpdateFavList();
@@ -285,7 +311,6 @@ namespace AvatarFav
 
         private IEnumerator CheckAndWearAvatar()
         {
-            //DebugUtils.PrintHierarchy(pageAvatar.avatar.transform, 0); // DEBUG
             VRCCoreEditor::VRC.Core.PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<VRCCoreEditor::VRC.Core.PipelineManager>();
             VRC.Core.PipelineManager avatarPipelineManager2 = pageAvatar.avatar.GetComponentInChildren<VRC.Core.PipelineManager>();
             if (avatarPipelineManager == null && avatarPipelineManager2 == null)
@@ -346,6 +371,7 @@ namespace AvatarFav
         private void ToggleAvatarFavorite()
         {
             ApiAvatar currentApiAvatar = pageAvatar.avatar.apiAvatar;
+            //Check if the current avatar is favorited, and ask to remove it from list if so
             foreach (ApiAvatar avatar in favoriteAvatarList)
             {
                 if (avatar.id == currentApiAvatar.id)
@@ -355,7 +381,7 @@ namespace AvatarFav
                     return;
                 }
             }
-
+            //Else, add it to the favorite list
             if (currentApiAvatar.releaseStatus != "public")
             {
                 VRCUiPopupManagerUtils.GetVRCUiPopupManager().ShowStandardPopup("Error", "Unable to favorite avatar :<br>This avatar is not public", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
@@ -380,56 +406,9 @@ namespace AvatarFav
             );
         }
 
-        public static Transform DuplicateButton(Transform baseButton, string buttonText, Vector2 posDelta)
-        {
-            GameObject buttonGO = new GameObject("DuplicatedButton", new Type[] {
-                typeof(Button),
-                typeof(Image)
-            });
 
-            RectTransform rtO = baseButton.GetComponent<RectTransform>();
-            RectTransform rtT = buttonGO.GetComponent<RectTransform>();
 
-            buttonGO.transform.SetParent(baseButton.parent);
-            buttonGO.GetComponent<Image>().sprite = baseButton.GetComponent<Image>().sprite;
-            buttonGO.GetComponent<Image>().type = baseButton.GetComponent<Image>().type;
-            buttonGO.GetComponent<Image>().fillCenter = baseButton.GetComponent<Image>().fillCenter;
-            buttonGO.GetComponent<Button>().targetGraphic = buttonGO.GetComponent<Image>();
 
-            rtT.localScale = rtO.localScale;
-
-            rtT.anchoredPosition = rtO.anchoredPosition;
-            rtT.sizeDelta = rtO.sizeDelta;
-
-            rtT.localPosition = rtO.localPosition + new Vector3(posDelta.x, posDelta.y, 0);
-            rtT.localRotation = rtO.localRotation;
-
-            GameObject textGO = new GameObject("Text", typeof(Text));
-            textGO.transform.SetParent(buttonGO.transform);
-
-            RectTransform rtO2 = baseButton.Find("Text").GetComponent<RectTransform>();
-            RectTransform rtT2 = textGO.GetComponent<RectTransform>();
-            rtT2.localScale = rtO2.localScale;
-
-            rtT2.anchorMin = rtO2.anchorMin;
-            rtT2.anchorMax = rtO2.anchorMax;
-            rtT2.anchoredPosition = rtO2.anchoredPosition;
-            rtT2.sizeDelta = rtO2.sizeDelta;
-
-            rtT2.localPosition = rtO2.localPosition;
-            rtT2.localRotation = rtO2.localRotation;
-
-            Text tO = baseButton.Find("Text").GetComponent<Text>();
-            Text tT = textGO.GetComponent<Text>();
-            tT.text = buttonText;
-            tT.font = tO.font;
-            tT.fontSize = tO.fontSize;
-            tT.fontStyle = tO.fontStyle;
-            tT.alignment = tO.alignment;
-            tT.color = tO.color;
-
-            return buttonGO.transform;
-        }
 
         private void RequestAvatars()
         {
@@ -463,33 +442,6 @@ namespace AvatarFav
                     favButton.GetComponent<Button>().interactable = true;
                 });
             }).Start();
-        }
-
-
-        // DEBUG
-
-        private void PrintHierarchy(Transform transform, int depth)
-        {
-            String s = "";
-            for (int i = 0; i < depth; i++) s += "\t";
-            s += transform.name + " [";
-
-            MonoBehaviour[] mbs = transform.GetComponents<MonoBehaviour>();
-            for (int i = 0; i < mbs.Length; i++)
-            {
-                if (mbs[i] == null) continue;
-                if (i == 0)
-                    s += mbs[i].GetType();
-                else
-                    s += ", " + mbs[i].GetType();
-            }
-
-            s += "]";
-            VRCModLogger.Log(s);
-            foreach (Transform t in transform)
-            {
-                if (t != null) PrintHierarchy(t, depth + 1);
-            }
         }
     }
 }
