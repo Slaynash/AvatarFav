@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.1", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -106,7 +106,9 @@ namespace AvatarFav
                 baseAvatarModelPosition = avatarModel.localPosition;
 
 
-                if (File.Exists("VRChat_Data\\Managed\\VRLoader\\Modules\\Avatars.txt"))
+                FileInfo[] files = new DirectoryInfo(Environment.CurrentDirectory).GetFiles("Avatars.txt", SearchOption.AllDirectories);
+                VRCModLogger.Log("[AvatarFavMod] Found " + files.Length + " Avatars.txt");
+                if (files.Length > 0)
                 {
 
                     VRCModLogger.Log("[AvatarFav] Adding import button to UI - Duplicating Button");

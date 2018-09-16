@@ -24,17 +24,22 @@ namespace AvatarFav
         public static IEnumerator ImportAvatarfile()
         {
             VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Reading avatar list file...");
-            if (File.Exists("VRChat_Data\\Managed\\VRLoader\\Modules\\Avatars.txt"))
+            FileInfo[] files = new DirectoryInfo(Environment.CurrentDirectory).GetFiles("Avatars.txt", SearchOption.AllDirectories);
+            VRCModLogger.Log("[VRCheatAvatarfileImporter] Found " + files.Length + " Avatars.txt");
+            if (files.Length > 0)
             {
                 // Load all avatarIds
-                string[] array = File.ReadAllLines("VRChat_Data\\Managed\\VRLoader\\Modules\\Avatars.txt");
-                for (int i = 0; i < array.Length; i++)
+                foreach(FileInfo fi in files)
                 {
-                    string[] array2 = array[i].Split(new char[] { '|' });
-                    if (array2.Length >= 3)
+                    string[] array = File.ReadAllLines(fi.FullName);
+                    for (int i = 0; i < array.Length; i++)
                     {
-                        if (!savedAvatars.ContainsKey(array2[1]))
-                            savedAvatars.Add(array2[1], array2[0]);
+                        string[] array2 = array[i].Split(new char[] { '|' });
+                        if (array2.Length >= 3)
+                        {
+                            if (!savedAvatars.ContainsKey(array2[1]))
+                                savedAvatars.Add(array2[1], array2[0]);
+                        }
                     }
                 }
 
@@ -51,7 +56,7 @@ namespace AvatarFav
                 Importing = false;
                 VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Imported " + importedAvatars + " new public avatars from the list (" + importedAvatars + "/" + savedAvatars.Count + " avatars)", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
             }
-            else VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Error: Unable to found VRCheat avatar list file", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+            else VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Error: Unable to find any Avatars.txt file in your game directory", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
         }
 
         private static IEnumerator AddAvatarToList(string avatarId, string avatarName)
