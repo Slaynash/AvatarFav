@@ -1,6 +1,4 @@
-﻿extern alias VRCCoreEditor;
-
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -20,7 +18,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.1", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.1a", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -136,7 +134,6 @@ namespace AvatarFav
 
                 VRCModLogger.Log("[AvatarFav] Looking up for dev avatar list");
                 UiAvatarList[] uiAvatarLists = Resources.FindObjectsOfTypeAll<UiAvatarList>();
-
                 VRCModLogger.Log("[AvatarFav] Found " + uiAvatarLists.Length + " UiAvatarList");
 
                 // Get "developper" list as favList
@@ -145,7 +142,7 @@ namespace AvatarFav
 
                 VRCModLogger.Log("[AvatarFav] Updating list name and activating");
                 // Enable list and change name
-                favList.GetComponentInChildren<Button>(true).GetComponentInChildren<Text>().text = "Favorite";
+                favList.GetComponentInChildren<Button>(true).GetComponentInChildren<Text>().text = "Favorite (Unofficial)";
                 favList.gameObject.SetActive(true);
 
                 VRCModLogger.Log("[AvatarFav] Moving list to the first in siblings hierarchy");
@@ -159,7 +156,7 @@ namespace AvatarFav
                     ParameterInfo[] parameters = m.GetParameters();
                     return parameters.Length == 1 && parameters.First().ParameterType == typeof(List<ApiAvatar>);
                 });
-                VRCModLogger.Log("[AvatarFav] Looking up for the real UpdateAvatar method (Found " + tmp1.ToList().Count + " mathching methods)");
+                VRCModLogger.Log("[AvatarFav] Looking up for the real UpdateAvatar method (Found " + tmp1.ToList().Count + " matching methods)");
                 updateAvatarListMethod = tmp1.First((m) =>
                 {
                     return m.Parse().Any((i) =>
@@ -313,17 +310,20 @@ namespace AvatarFav
 
         private IEnumerator CheckAndWearAvatar()
         {
-            VRCCoreEditor::VRC.Core.PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<VRCCoreEditor::VRC.Core.PipelineManager>();
-            VRC.Core.PipelineManager avatarPipelineManager2 = pageAvatar.avatar.GetComponentInChildren<VRC.Core.PipelineManager>();
-            if (avatarPipelineManager == null && avatarPipelineManager2 == null)
+            DebugUtils.PrintHierarchy(pageAvatar.avatar.transform, 0);
+            PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<PipelineManager>();
+            if (avatarPipelineManager == null) // Avoid avatars locking for builds <625
             {
-                VRCUiPopupManagerUtils.ShowPopup("Error", "Please wait for this avatar to finish loading before wearing it", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                if (pageAvatar.avatar.transform.GetChild(0).name == "avatar_loading2(Clone)")
+                    VRCUiPopupManagerUtils.ShowPopup("Error", "Please wait for this avatar to finish loading before wearing it", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                else
+                    baseChooseEvent.Invoke();
             }
             else
             {
                 bool copied = false;
 
-                string avatarBlueprintID = avatarPipelineManager?.blueprintId ?? avatarPipelineManager2?.blueprintId ?? "";
+                string avatarBlueprintID = avatarPipelineManager?.blueprintId ?? "";
                 if (!avatarBlueprintID.Equals("") && !avatarBlueprintID.Equals(pageAvatar.avatar.apiAvatar.id))
                     copied = true;
 
