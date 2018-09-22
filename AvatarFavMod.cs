@@ -310,7 +310,7 @@ namespace AvatarFav
 
         private IEnumerator CheckAndWearAvatar()
         {
-            DebugUtils.PrintHierarchy(pageAvatar.avatar.transform, 0);
+            //DebugUtils.PrintHierarchy(pageAvatar.avatar.transform, 0);
             PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<PipelineManager>();
             if (avatarPipelineManager == null) // Avoid avatars locking for builds <625
             {
