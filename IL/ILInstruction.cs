@@ -5,7 +5,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Text;
 
-namespace AvatarFav
+namespace AvatarFav.IL
 {
     public struct ILInstruction
     {

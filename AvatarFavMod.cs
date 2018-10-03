@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using AvatarFav.IL;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -14,11 +15,12 @@ using VRC.Core;
 using VRC.UI;
 using VRCModLoader;
 using VRCModNetwork;
+using VRCSDK2;
 using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.1a", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.2", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -50,6 +52,8 @@ namespace AvatarFav
 
         private Button.ButtonClickedEvent baseChooseEvent;
         private int lastPickerCound = 0;
+
+        private ApiWorld currentRoom;
 
         void OnLevelWasLoaded(int level)
         {
@@ -278,15 +282,18 @@ namespace AvatarFav
                         favButton.gameObject.SetActive(true);
                         avatarModel.localPosition = baseAvatarModelPosition + new Vector3(0, 60, 0);
 
+                        bool found = false;
+
                         foreach (ApiAvatar avatar in favoriteAvatarList)
                         {
                             if (avatar.id.Equals(currentUiAvatarId))
                             {
                                 favButtonText.text = "Unfavorite";
-                                return;
+                                found = true;
+                                break;
                             }
                         }
-                        favButtonText.text = "Favorite";
+                        if(!found) favButtonText.text = "Favorite";
                     }
                 }
 
@@ -295,6 +302,39 @@ namespace AvatarFav
                 {
                     VRCUiPopupManagerUtils.ShowPopup("Error", addError, "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
                     addError = null;
+                }
+
+
+                if (RoomManager.currentRoom != null && RoomManager.currentRoom.id != null && RoomManager.currentRoom.currentInstanceIdOnly != null)
+                {
+                    if(currentRoom == null)
+                    {
+                        currentRoom = RoomManager.currentRoom;
+
+                        if (currentRoom.releaseStatus != "public")
+                        {
+                            VRCModLogger.Log("[AvatarFav] Current world release status isn't public. Pedestal scan disabled.");
+                        }
+                        else
+                        {
+                            VRC_AvatarPedestal[] pedestalsInWorld = GameObject.FindObjectsOfType<VRC_AvatarPedestal>();
+                            VRCModLogger.Log("[AvatarFav] Found " + pedestalsInWorld.Length + " VRC_AvatarPedestal in current world");
+                            string dataToSend = currentRoom.id;
+                            foreach (VRC_AvatarPedestal p in pedestalsInWorld)
+                            {
+                                if (p.blueprintId == null || p.blueprintId == "")
+                                    continue;
+
+                                dataToSend += ";" + p.blueprintId;
+                            }
+
+                            VRCModNetworkManager.SendRPC("slaynash.avatarfav.avatarsinworld", dataToSend);
+                        }
+                    }
+                }
+                else
+                {
+                    currentRoom = null;
                 }
 
 

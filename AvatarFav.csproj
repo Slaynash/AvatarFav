@@ -55,6 +55,10 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\VRCCore-Standalone.dll</HintPath>
     </Reference>
+    <Reference Include="VRCSDK2, Version=0.0.0.0, Culture=neutral, PublicKeyToken=67033c44591afb45, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\VRCSDK2.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="IL\ILInstruction.cs" />
@@ -62,6 +66,7 @@
     <Compile Include="AvatarFavMod.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SerializableApiAvatar.cs" />
+    <Compile Include="ServerVersionOverrider.cs" />
     <Compile Include="VRCheatAvatarfileImporter.cs" />
   </ItemGroup>
   <ItemGroup>
