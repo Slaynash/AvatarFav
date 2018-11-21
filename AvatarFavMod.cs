@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.2", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.3", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -75,10 +75,8 @@ namespace AvatarFav
                 int buildNumber = -1;
                 if (vrcApplicationSetupInstanceProperty != null) buildNumber = ((VRCApplicationSetup)vrcApplicationSetupInstanceProperty.GetValue(null, null)).buildNumber;
                 VRCModLogger.Log("[AvatarFav] Game build " + buildNumber);
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(vrcApplicationSetupInstanceProperty != null && buildNumber < 623 ) ? 1 : 0];
+                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(vrcApplicationSetupInstanceProperty != null && (buildNumber < 623 || buildNumber > 6000)) ? 1 : 0];
                 Transform changeButton = pageAvatar.transform.Find("Change Button");
-
-                //PrintHierarchy(pageAvatar.transform, 0);
 
                 VRCModLogger.Log("[AvatarFav] Adding avatar check on Change button");
 
