@@ -62,18 +62,18 @@ namespace AvatarFav
         private static IEnumerator AddAvatarToList(string avatarId, string avatarName)
         {
             bool found = false;
-            foreach (ApiAvatar avatar in AvatarFavMod.favoriteAvatarList)
+            foreach (string avatarfavId in AvatarFavMod.favoriteAvatarList)
             {
-                if (avatar.id == avatarId)
+                if (avatarfavId == avatarId)
                 {
                     found = true;
-                    VRCModLogger.LogError("[VRCheatAvatarfileImporter] Avatar " + avatarName + " already exist in list as " + avatar.name);
+                    VRCModLogger.LogError("[VRCheatAvatarfileImporter] Avatar " + avatarName + " already exist in list");
                     break;
                 }
             }
             if (!found)
             {
-                using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + avatarId + "?apiKey=" + API.ApiKey))
+                using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + avatarId + "?apiKey=" + AvatarFavMod.GetApiKey()))
                 {
                     yield return avtrRequest;
                     int rc = WebRequestsUtils.GetResponseCode(avtrRequest);

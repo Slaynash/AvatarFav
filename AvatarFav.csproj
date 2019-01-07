@@ -44,8 +44,19 @@
     <Reference Include="UnityEngine">
       <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.CoreModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.UI">
       <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.UI.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule">
+      <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.UIModule.dll</HintPath>
+    </Reference>
+    <Reference Include="UnityEngine.UnityWebRequestWWWModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>D:\jeux\steam\SteamApps\common\VRChat\VRChat_Data\Managed\UnityEngine.UnityWebRequestWWWModule.dll</HintPath>
     </Reference>
     <Reference Include="VRCCore-Editor, Version=1.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
@@ -61,6 +72,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AvatarPageHelper.cs" />
     <Compile Include="IL\ILInstruction.cs" />
     <Compile Include="IL\ILParser.cs" />
     <Compile Include="AvatarFavMod.cs" />

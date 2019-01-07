@@ -20,21 +20,25 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.3", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.4", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
 
         public static AvatarFavMod instance;
 
+        private static string _apiKey = null;
+        private static int _buildNumber = -1;
 
-        private static MethodInfo updateAvatarListMethod;
 
-        internal static List<ApiAvatar> favoriteAvatarList = new List<ApiAvatar>();
+        //private static MethodInfo updateAvatarListMethod;
+
+        //internal static List<ApiAvatar> favoriteAvatarList = new List<ApiAvatar>();
+        internal static List<string> favoriteAvatarList = new List<string>();
         private static bool avatarAvailables = false;
         private bool freshUpdate = false;
         private bool waitingForServer = false;
-
+        private bool newAvatarsFirst = true;
         private static UiAvatarList favList;
         private static Transform favButton;
         private static Text favButtonText;
@@ -44,16 +48,30 @@ namespace AvatarFav
 
         private static Vector3 baseAvatarModelPosition;
         private static string currentUiAvatarId = "";
-        private static ApiAvatar oldWearedAvatar = null;
 
         private bool alreadyLoaded = false;
         private bool initialised = false;
         private string addError;
 
         private Button.ButtonClickedEvent baseChooseEvent;
-        private int lastPickerCound = 0;
 
         private ApiWorld currentRoom;
+        private UiAvatarList avatarSearchList;
+        private UiInputField searchbar;
+
+
+        internal static FieldInfo categoryField;
+        private List<Action> actions = new List<Action>();
+
+        void OnApplicationStart()
+        {
+            VRCTools.ModPrefs.RegisterCategory("avatarfav", "AvatarFav");
+            VRCTools.ModPrefs.RegisterPrefBool("avatarfav", "newavatarsfirst", newAvatarsFirst, "Show new avatars first");
+
+            newAvatarsFirst = VRCTools.ModPrefs.GetBool("avatarfav", "newavatarsfirst");
+            
+            categoryField = typeof(UiAvatarList).GetField("category", BindingFlags.Public | BindingFlags.Instance);
+        }
 
         void OnLevelWasLoaded(int level)
         {
@@ -68,14 +86,9 @@ namespace AvatarFav
                     return;
                 }
                 instance = this;
-                VRCModLogger.Log("[AvatarFav] Getting game version");
-                PropertyInfo vrcApplicationSetupInstanceProperty = typeof(VRCApplicationSetup).GetProperties(BindingFlags.Public | BindingFlags.Static).First((pi) => pi.PropertyType == typeof(VRCApplicationSetup));
                 VRCModLogger.Log("[AvatarFav] Adding button to UI - Looking up for Change Button");
                 // Add a "Favorite" / "Unfavorite" button over the "Choose" button of the AvatarPage
-                int buildNumber = -1;
-                if (vrcApplicationSetupInstanceProperty != null) buildNumber = ((VRCApplicationSetup)vrcApplicationSetupInstanceProperty.GetValue(null, null)).buildNumber;
-                VRCModLogger.Log("[AvatarFav] Game build " + buildNumber);
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(vrcApplicationSetupInstanceProperty != null && (buildNumber < 623 || buildNumber > 6000)) ? 1 : 0];
+                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(GetBuildNumber() < 623 || GetBuildNumber() > 6000) ? 1 : 0];
                 Transform changeButton = pageAvatar.transform.Find("Change Button");
 
                 VRCModLogger.Log("[AvatarFav] Adding avatar check on Change button");
@@ -85,8 +98,7 @@ namespace AvatarFav
                 changeButton.GetComponent<Button>().onClick = new Button.ButtonClickedEvent();
                 changeButton.GetComponent<Button>().onClick.AddListener(() =>
                 {
-                    VRCModLogger.Log("Fetching avatar releaseStatus for " + pageAvatar.avatar.apiAvatar.name + " (" + pageAvatar.avatar.apiAvatar.id + ")");
-                    //API.SendGetRequest("avatars/" + pageAvatar.avatar.apiAvatar.id, responseContainer, null, true, 3600f);
+                    VRCModLogger.Log("[AvatarFav] Fetching avatar releaseStatus for " + pageAvatar.avatar.apiAvatar.name + " (" + pageAvatar.avatar.apiAvatar.id + ")");
                     ModManager.StartCoroutine(CheckAndWearAvatar());
                 });
 
@@ -110,7 +122,6 @@ namespace AvatarFav
                 VRCModLogger.Log("[AvatarFavMod] Found " + files.Length + " Avatars.txt");
                 if (files.Length > 0)
                 {
-
                     VRCModLogger.Log("[AvatarFav] Adding import button to UI - Duplicating Button");
                     Transform importButton = UnityUiUtils.DuplicateButton(changeButton, "Import Avatars", new Vector2(0, 0));
                     importButton.name = "ImportAvatars";
@@ -133,105 +144,180 @@ namespace AvatarFav
 
                 }
 
+                
+                favList = AvatarPageHelper.AddNewList("Favorite (Unofficial)", 1);
 
-                VRCModLogger.Log("[AvatarFav] Looking up for dev avatar list");
-                UiAvatarList[] uiAvatarLists = Resources.FindObjectsOfTypeAll<UiAvatarList>();
-                VRCModLogger.Log("[AvatarFav] Found " + uiAvatarLists.Length + " UiAvatarList");
 
-                // Get "developper" list as favList
-                FieldInfo categoryField = typeof(UiAvatarList).GetField("category", BindingFlags.Public | BindingFlags.Instance);
-                favList = uiAvatarLists.First((list) => (int)categoryField.GetValue(list) == 0);
-
-                VRCModLogger.Log("[AvatarFav] Updating list name and activating");
-                // Enable list and change name
-                favList.GetComponentInChildren<Button>(true).GetComponentInChildren<Text>().text = "Favorite (Unofficial)";
-                favList.gameObject.SetActive(true);
-
-                VRCModLogger.Log("[AvatarFav] Moving list to the first in siblings hierarchy");
-                // Set siblings index to first
-                favList.transform.SetAsFirstSibling();
-
-                // Get "UpdateAvatarList" method
-                VRCModLogger.Log("[AvatarFav] Looking up for UpdateAvatar methods");
-                var tmp1 = typeof(UiAvatarList).GetMethods(BindingFlags.Instance | BindingFlags.NonPublic).Where((m) =>
-                {
-                    ParameterInfo[] parameters = m.GetParameters();
-                    return parameters.Length == 1 && parameters.First().ParameterType == typeof(List<ApiAvatar>);
-                });
-                VRCModLogger.Log("[AvatarFav] Looking up for the real UpdateAvatar method (Found " + tmp1.ToList().Count + " matching methods)");
-                updateAvatarListMethod = tmp1.First((m) =>
-                {
-                    return m.Parse().Any((i) =>
-                    {
-                        return i.OpCode == OpCodes.Ldstr && i.GetArgument<string>() == "AvatarsAvailable, page: ";
-                    });
-                });
-
-                VRCModLogger.Log("[AvatarFav] Disabling dev check of PageAvatar");
-                // Disable "dev" check of PageAvatar (to remove auto-disable of the list)
-                typeof(PageAvatar)
-                    .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
-                    .Where((fi) => fi.FieldType == typeof(bool)).ToList()
-                    [1]
-                    .SetValue(pageAvatar, true);
 
                 // Get Getter of VRCUiContentButton.PressAction
                 applyAvatarField = typeof(VRCUiContentButton).GetFields(BindingFlags.NonPublic | BindingFlags.Instance).First((field) => field.FieldType == typeof(Action));
-                
+
+                VRCModLogger.Log("[AvatarFav] Registering VRCModNetwork events");
                 VRCModNetworkManager.OnAuthenticated += () =>
                 {
                     RequestAvatars();
                 };
 
-                VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.serverconnected", (senderId, data) =>
-                {
-                    if(waitingForServer) RequestAvatars();
-                });
-
-                VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.error", (senderId, data) => 
-                {
-                    addError = data;
-                });
-
+                VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.serverconnected", (senderId, data) => { if (waitingForServer) RequestAvatars(); });
+                VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.error", (senderId, data) => addError = data);
                 VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.avatarlistupdated", (senderId, data) =>
                 {
                     lock (favoriteAvatarList)
                     {
                         // Update Ui
                         favButton.GetComponent<Button>().interactable = true;
-                        favoriteAvatarList.Clear();
-                        
                         SerializableApiAvatar[] serializedAvatars = SerializableApiAvatar.ParseJson(data);
                         foreach (SerializableApiAvatar serializedAvatar in serializedAvatars)
-                        {
-                            ApiAvatar tmpAvatar = new ApiAvatar();
-                            tmpAvatar.id = serializedAvatar.id;
-                            tmpAvatar.name = serializedAvatar.name;
-                            tmpAvatar.imageUrl = serializedAvatar.imageUrl;
-                            tmpAvatar.authorName = serializedAvatar.authorName;
-                            tmpAvatar.authorId = serializedAvatar.authorId;
-                            tmpAvatar.assetUrl = serializedAvatar.assetUrl;
-                            tmpAvatar.description = serializedAvatar.description;
-                            tmpAvatar.tags = new List<String>(serializedAvatar.tags);
-                            tmpAvatar.version = (int)serializedAvatar.version;
-                            tmpAvatar.unityPackageUrl = serializedAvatar.unityPackageUrl;
-                            tmpAvatar.thumbnailImageUrl = serializedAvatar.thumbnailImageUrl;
-                            tmpAvatar.releaseStatus = "public";
-                            favoriteAvatarList.Add(tmpAvatar);
-                        }
+                            favoriteAvatarList.Add(serializedAvatar.id);
 
                         avatarAvailables = true;
                     }
                 });
+
+
+
+
+                VRCModLogger.Log("[AvatarFav] Adding avatar search list");
+
+                if (pageAvatar != null)
+                {
+                    VRCUiPageHeader pageheader = VRCUiManagerUtils.GetVRCUiManager().GetComponentInChildren<VRCUiPageHeader>(true);
+                    if (pageheader != null)
+                    {
+                        searchbar = pageheader.searchBar;
+                        if (searchbar != null)
+                        {
+                            VRCModLogger.Log("[AvatarFav] creating avatar search list");
+                            avatarSearchList = AvatarPageHelper.AddNewList("Search Results", 0);
+                            avatarSearchList.ClearAll();
+                            avatarSearchList.gameObject.SetActive(false);
+                            avatarSearchList.collapsedCount = 50;
+                            avatarSearchList.expandedCount = 50;
+                            avatarSearchList.collapseRows = 5;
+                            avatarSearchList.extendRows = 5;
+                            avatarSearchList.contractedHeight = 850f;
+                            avatarSearchList.expandedHeight = 850f;
+                            avatarSearchList.GetComponent<LayoutElement>().minWidth = 1600f;
+                            avatarSearchList.GetComponentInChildren<GridLayoutGroup>(true).constraintCount = 5;
+                            avatarSearchList.expandButton.image.enabled = false;
+
+                            VRCModLogger.Log("[AvatarFav] Overwriting search button");
+                            VRCUiManagerUtils.OnPageShown += (page) =>
+                            {
+                                if (page.GetType() == typeof(PageAvatar))
+                                {
+                                    UiVRCList[] lists = page.GetComponentsInChildren<UiVRCList>(true);
+                                    foreach(UiVRCList list in lists)
+                                    {
+                                        if (list != avatarSearchList && (list.GetType() != typeof(UiAvatarList) || ((int)categoryField.GetValue(list)) != 0))
+                                            list.gameObject.SetActive(true);
+                                        else
+                                            list.gameObject.SetActive(false);
+                                    }
+                                    VRCModLogger.Log("[AvatarFav] PageAvatar shown. Enabling searchbar next frame");
+                                    ModManager.StartCoroutine(EnableSearchbarNextFrame());
+                                }
+                            };
+
+                            VRCModNetworkManager.SetRPCListener("slaynash.avatarfav.searchresults", (senderid, data) =>
+                            {
+                                AddMainAction(() =>
+                                {
+                                    if (data.StartsWith("ERROR"))
+                                    {
+                                        VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Unable to fetch avatars: Server returned error: " + data.Substring("ERROR ".Length), "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+                                    }
+                                    else
+                                    {
+                                        avatarSearchList.ClearSpecificList();
+                                        if (!avatarSearchList.gameObject.activeSelf)
+                                        {
+                                            UiVRCList[] lists = pageAvatar.GetComponentsInChildren<UiVRCList>(true);
+                                            foreach (UiVRCList list in lists)
+                                            {
+                                                if (list != avatarSearchList)
+                                                    list.gameObject.SetActive(false);
+                                            }
+                                        }
+
+                                        SerializableApiAvatar[] serializedAvatars = SerializableApiAvatar.ParseJson(data);
+
+                                        string[] avatarsIds = new string[serializedAvatars.Length];
+
+                                        for (int i = 0; i < serializedAvatars.Length; i++) avatarsIds[i] = serializedAvatars[i].id;
+
+                                        avatarSearchList.specificListIds = avatarsIds;
+                                        if (avatarSearchList.gameObject.activeSelf)
+                                            avatarSearchList.Refresh();
+                                        else
+                                            avatarSearchList.gameObject.SetActive(true);
+                                    }
+                                });
+                            });
+                        }
+                        else
+                            VRCModLogger.LogError("[AvatarFav] Unable to find search bar");
+                    }
+                    else
+                        VRCModLogger.LogError("[AvatarFav] Unable to find page header");
+                }
+                else
+                    VRCModLogger.LogError("[AvatarFav] Unable to find avatar page");
+                
+
+
+
 
                 VRCModLogger.Log("[AvatarFav] AvatarFav Initialised !");
                 initialised = true;
             }
         }
 
+        private void AddMainAction(Action a)
+        {
+            lock (actions)
+            {
+                actions.Add(a);
+            }
+        }
+
+        private IEnumerator EnableSearchbarNextFrame()
+        {
+            yield return null;
+            searchbar.editButton.interactable = true;
+            searchbar.onDoneInputting = (text) =>
+            {
+                SearchForAvatars(text);
+            };
+        }
+
+        private void SearchForAvatars(string text)
+        {
+            VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Looking for avatars");
+            VRCModNetworkManager.SendRPC("slaynash.avatarfav.search", text.Trim(), () => { }, (error) => {
+                VRCUiPopupManagerUtils.ShowPopup("AvatarFav", "Unable to fetch avatars:\nVRVCModNetwork returned error:\n" + error, "Close", () =>  VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
+            });
+        }
+
         public void OnUpdate()
         {
             if (!initialised) return;
+
+            lock (actions)
+            {
+                foreach (Action a in actions)
+                {
+                    try
+                    {
+                        a();
+                    }
+                    catch (Exception e)
+                    {
+                        VRCModLogger.Log("[AvatarFav] Error while calling action from main thread: " + e);
+                    }
+                }
+                actions.Clear();
+            }
 
             try
             {
@@ -243,26 +329,19 @@ namespace AvatarFav
                         if (avatarAvailables)
                         {
                             avatarAvailables = false;
-                            UpdateFavList();
-                            freshUpdate = true;
-                        }
-                        if(!VRCheatAvatarfileImporter.Importing && ((favList.pickers.Count == 0 && favoriteAvatarList.Count != 0) || (favList.pickers.Count == lastPickerCound && lastPickerCound != favoriteAvatarList.Count)))
-                        {
-                            VRCModLogger.Log("[AvatarFav] Picker count in favlist mismatch. Updating favlist (" + favList.pickers.Count + " vs " + favoriteAvatarList.Count + ")");
-                            UpdateFavList();
-                            freshUpdate = true;
-                        }
-                        lastPickerCound = favList.pickers.Count;
-                    }
-                }
+                            avatarSearchList.ClearSpecificList();
 
-                //Auto-refresh weared avatar to PageAvatar UI, so we can fav it (and observe it also) 
-                if (pageAvatar.avatar != null && pageAvatar.avatar.apiAvatar != null && CurrentUserUtils.GetApiAvatar() != null && (oldWearedAvatar == null || oldWearedAvatar.id != CurrentUserUtils.GetApiAvatar().id))
-                {
-                    oldWearedAvatar = CurrentUserUtils.GetApiAvatar();
-                    if (pageAvatar.avatar.apiAvatar.id != oldWearedAvatar.id)
-                    {
-                        pageAvatar.avatar.Refresh(oldWearedAvatar);
+                            if (newAvatarsFirst)
+                            {
+                                List<string> favReversed = favoriteAvatarList.ToList();
+                                favReversed.Reverse();
+                                favList.specificListIds = favReversed.ToArray();
+                            }
+                            else
+                                favList.specificListIds = favoriteAvatarList.ToArray();
+
+                            favList.Refresh();
+                        }
                     }
                 }
 
@@ -282,9 +361,9 @@ namespace AvatarFav
 
                         bool found = false;
 
-                        foreach (ApiAvatar avatar in favoriteAvatarList)
+                        foreach (string avatarId in favoriteAvatarList)
                         {
-                            if (avatar.id.Equals(currentUiAvatarId))
+                            if (avatarId == currentUiAvatarId)
                             {
                                 favButtonText.text = "Unfavorite";
                                 found = true;
@@ -352,6 +431,7 @@ namespace AvatarFav
             PipelineManager avatarPipelineManager = pageAvatar.avatar.GetComponentInChildren<PipelineManager>();
             if (avatarPipelineManager == null) // Avoid avatars locking for builds <625
             {
+                VRCModLogger.Log("[AvatarFav] Current avatar prefab name: " + pageAvatar.avatar.transform.GetChild(0).name);
                 if (pageAvatar.avatar.transform.GetChild(0).name == "avatar_loading2(Clone)")
                     VRCUiPopupManagerUtils.ShowPopup("Error", "Please wait for this avatar to finish loading before wearing it", "Close", () => VRCUiPopupManagerUtils.GetVRCUiPopupManager().HideCurrentPopup());
                 else
@@ -365,7 +445,7 @@ namespace AvatarFav
                 if (!avatarBlueprintID.Equals("") && !avatarBlueprintID.Equals(pageAvatar.avatar.apiAvatar.id))
                     copied = true;
 
-                using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + (copied ? avatarBlueprintID : pageAvatar.avatar.apiAvatar.id) + "?apiKey=" + API.ApiKey))
+                using (WWW avtrRequest = new WWW(API.GetApiUrl() + "avatars/" + (copied ? avatarBlueprintID : pageAvatar.avatar.apiAvatar.id) + "?apiKey=" + GetApiKey()))
                 {
                     yield return avtrRequest;
                     int rc = WebRequestsUtils.GetResponseCode(avtrRequest);
@@ -402,22 +482,57 @@ namespace AvatarFav
             }
         }
 
+        internal static string GetApiKey()
+        {
+            if(_apiKey == null)
+            {
+                VRCModLogger.Log("[AvatarFav] Trying to get ApiKey from VRC.Core.API");
+                foreach (FieldInfo fi_ in typeof(API).GetFields(BindingFlags.Static | BindingFlags.NonPublic | BindingFlags.Public))
+                {
+                    if (fi_ != null && fi_.Name == "ApiKey")
+                    {
+                        _apiKey = fi_.GetValue(null) as string;
+                        break;
+                    }
+                }
+                if(_apiKey == null)
+                {
+                    VRCModLogger.Log("[AvatarFav] Unable to find field ApiKey in VRC.Core.API. Using default key.");
+                    _apiKey = "JlE5Jldo5Jibnk5O5hTx6XVqsJu4WJ26";
+                }
+                VRCModLogger.Log("[AvatarFav] Current ApiKey: " + _apiKey);
+            }
+            return _apiKey;
+        }
+
+        internal static int GetBuildNumber()
+        {
+            if (_buildNumber == -1)
+            {
+                VRCModLogger.Log("[AvatarFav] Fetching build number");
+                PropertyInfo vrcApplicationSetupInstanceProperty = typeof(VRCApplicationSetup).GetProperties(BindingFlags.Public | BindingFlags.Static).First((pi) => pi.PropertyType == typeof(VRCApplicationSetup));
+                _buildNumber = ((VRCApplicationSetup)vrcApplicationSetupInstanceProperty.GetValue(null, null)).buildNumber;
+                VRCModLogger.Log("[AvatarFav] Game build " + _buildNumber);
+            }
+            return _buildNumber;
+        }
+        /*
         private void UpdateFavList()
         {
             object[] parameters = new object[] { favoriteAvatarList };
             updateAvatarListMethod.Invoke(favList, parameters);
         }
-
+        */
         private void ToggleAvatarFavorite()
         {
             ApiAvatar currentApiAvatar = pageAvatar.avatar.apiAvatar;
             //Check if the current avatar is favorited, and ask to remove it from list if so
-            foreach (ApiAvatar avatar in favoriteAvatarList)
+            foreach (string avatarId in favoriteAvatarList)
             {
-                if (avatar.id == currentApiAvatar.id)
+                if (avatarId == currentApiAvatar.id)
                 {
                     favButton.GetComponent<Button>().interactable = false;
-                    ShowRemoveAvatarConfirmPopup(avatar.id);
+                    ShowRemoveAvatarConfirmPopup(avatarId);
                     return;
                 }
             }
