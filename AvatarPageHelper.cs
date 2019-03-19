@@ -13,7 +13,7 @@ namespace AvatarFav
 {
     public static class AvatarPageHelper
     {
-        private static FieldInfo fieldCachedSpecificList;
+        internal static FieldInfo fieldCachedSpecificList;
 
         public static UiAvatarList AddNewList(string title, int index)
         {
@@ -62,6 +62,7 @@ namespace AvatarFav
                     if(fi.FieldType == typeof(Dictionary<string, ApiAvatar>))
                     {
                         fieldCachedSpecificList = fi;
+                        VRCModLogger.Log("fieldCachedSpecificList: " + fieldCachedSpecificList);
                         break;
                     }
                 }
@@ -73,6 +74,8 @@ namespace AvatarFav
             }
             ((Dictionary<string, ApiAvatar>)fieldCachedSpecificList.GetValue(list)).Clear();
             list.ClearAll();
+
+            VRCModLogger.Log("Number of elements in list after clear: " + ((Dictionary<string, ApiAvatar>)fieldCachedSpecificList.GetValue(list)).Count);
         }
     }
 }

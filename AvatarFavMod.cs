@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.4", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.6", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -88,7 +88,7 @@ namespace AvatarFav
                 instance = this;
                 VRCModLogger.Log("[AvatarFav] Adding button to UI - Looking up for Change Button");
                 // Add a "Favorite" / "Unfavorite" button over the "Choose" button of the AvatarPage
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[(GetBuildNumber() < 623 || GetBuildNumber() > 6000) ? 1 : 0];
+                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[0];
                 Transform changeButton = pageAvatar.transform.Find("Change Button");
 
                 VRCModLogger.Log("[AvatarFav] Adding avatar check on Change button");
@@ -167,6 +167,7 @@ namespace AvatarFav
                         // Update Ui
                         favButton.GetComponent<Button>().interactable = true;
                         SerializableApiAvatar[] serializedAvatars = SerializableApiAvatar.ParseJson(data);
+                        favoriteAvatarList.Clear();
                         foreach (SerializableApiAvatar serializedAvatar in serializedAvatars)
                             favoriteAvatarList.Add(serializedAvatar.id);
 
@@ -329,7 +330,7 @@ namespace AvatarFav
                         if (avatarAvailables)
                         {
                             avatarAvailables = false;
-                            avatarSearchList.ClearSpecificList();
+                            favList.ClearSpecificList();
 
                             if (newAvatarsFirst)
                             {
@@ -339,8 +340,11 @@ namespace AvatarFav
                             }
                             else
                                 favList.specificListIds = favoriteAvatarList.ToArray();
+                            
 
                             favList.Refresh();
+
+                            freshUpdate = true;
                         }
                     }
                 }
@@ -360,7 +364,7 @@ namespace AvatarFav
                         avatarModel.localPosition = baseAvatarModelPosition + new Vector3(0, 60, 0);
 
                         bool found = false;
-
+                        
                         foreach (string avatarId in favoriteAvatarList)
                         {
                             if (avatarId == currentUiAvatarId)
