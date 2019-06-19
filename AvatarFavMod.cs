@@ -88,7 +88,17 @@ namespace AvatarFav
                 instance = this;
                 VRCModLogger.Log("[AvatarFav] Adding button to UI - Looking up for Change Button");
                 // Add a "Favorite" / "Unfavorite" button over the "Choose" button of the AvatarPage
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[0];
+                
+                VRCUiPage[] pages = Resources.FindObjectsOfTypeAll<VRCUiPage>();
+                for (int i = 0; i < pages.Length; i++)
+                {
+                    if (pages[i].displayName == "Avatars")
+                    {
+                        pageAvatar = (PageAvatar)pages[i];
+                        break;
+                    }
+                }
+                
                 Transform changeButton = pageAvatar.transform.Find("Change Button");
 
                 VRCModLogger.Log("[AvatarFav] Adding avatar check on Change button");
