@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.6", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.7", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -88,8 +88,8 @@ namespace AvatarFav
                 instance = this;
                 VRCModLogger.Log("[AvatarFav] Adding button to UI - Looking up for Change Button");
                 // Add a "Favorite" / "Unfavorite" button over the "Choose" button of the AvatarPage
-                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>()[0];
-                Transform changeButton = pageAvatar.transform.Find("Change Button");
+                Transform changeButton = null;
+                pageAvatar = Resources.FindObjectsOfTypeAll<PageAvatar>().First(p => (changeButton = p.transform.Find("Change Button")) != null);
 
                 VRCModLogger.Log("[AvatarFav] Adding avatar check on Change button");
 
