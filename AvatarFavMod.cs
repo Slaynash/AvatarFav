@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.7", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.8", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -353,7 +353,14 @@ namespace AvatarFav
                 {
                     currentUiAvatarId = pageAvatar.avatar.apiAvatar.id;
 
-                    if (!pageAvatar.avatar.apiAvatar.releaseStatus.Equals("public") || pageAvatar.avatar.apiAvatar.authorId == APIUser.CurrentUser.id)
+                    bool favorited = favoriteAvatarList.Contains(currentUiAvatarId);
+
+                    if (favorited)
+                        favButtonText.text = "Unfavorite";
+                    else
+                        favButtonText.text = "Favorite";
+
+                    if ((!pageAvatar.avatar.apiAvatar.releaseStatus.Equals("public") && !favorited) || pageAvatar.avatar.apiAvatar.authorId == APIUser.CurrentUser.id)
                     {
                         favButton.gameObject.SetActive(false);
                         avatarModel.localPosition = baseAvatarModelPosition;
@@ -362,19 +369,6 @@ namespace AvatarFav
                     {
                         favButton.gameObject.SetActive(true);
                         avatarModel.localPosition = baseAvatarModelPosition + new Vector3(0, 60, 0);
-
-                        bool found = false;
-                        
-                        foreach (string avatarId in favoriteAvatarList)
-                        {
-                            if (avatarId == currentUiAvatarId)
-                            {
-                                favButtonText.text = "Unfavorite";
-                                found = true;
-                                break;
-                            }
-                        }
-                        if(!found) favButtonText.text = "Favorite";
                     }
                 }
 
