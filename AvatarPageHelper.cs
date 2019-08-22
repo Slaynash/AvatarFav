@@ -28,7 +28,7 @@ namespace AvatarFav
             UiAvatarList gameFavList = null;
             foreach(UiAvatarList list in uiAvatarLists)
             {
-                if(((int)AvatarFavMod.categoryField.GetValue(list)) != 0)
+                if(list.name.Contains("Favorite") && !list.name.Contains("Quest"))
                 {
                     gameFavList = list;
                     break;

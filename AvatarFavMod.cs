@@ -20,7 +20,7 @@ using VRCTools;
 
 namespace AvatarFav
 {
-    [VRCModInfo("AvatarFav", "1.2.8", "Slaynash")]
+    [VRCModInfo("AvatarFav", "1.2.9", "Slaynash")]
     public class AvatarFavMod : VRCMod
     {
 
@@ -145,7 +145,7 @@ namespace AvatarFav
                 }
 
                 
-                favList = AvatarPageHelper.AddNewList("Favorite (Unofficial)", 1);
+                favList = AvatarPageHelper.AddNewList("Favorite Avatar List (Unofficial)", 1);
 
 
 
