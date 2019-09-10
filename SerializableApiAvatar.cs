@@ -9,20 +9,12 @@ namespace AvatarFav
     public class SerializableApiAvatar
     {
         public string id;
-        public string name;
-        public string description;
-        public string authorId;
-        public string authorName;
-        public string[] tags;
-        public string assetUrl;
-        public string imageUrl;
-        public string thumbnailImageUrl;
-        public string releaseStatus; // only set from API requests, not VRCModNW requests
-        public int version;
-        // ...
-        public string unityPackageUrl;
 
-        public static SerializableApiAvatar[] ParseJson(String json)
+        // only set from API requests, not VRCModNW requests
+        public string authorId;
+        public string releaseStatus; 
+
+        public static SerializableApiAvatar[] ParseJson(string json)
         {
             return JsonConvert.DeserializeObject<SerializableApiAvatarList>(json)?.list ?? new SerializableApiAvatar[0];
         }
