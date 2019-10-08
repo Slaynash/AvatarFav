@@ -76,7 +76,7 @@ namespace AvatarFav
         void OnLevelWasLoaded(int level)
         {
             VRCModLogger.Log("[AvatarFav] OnLevelWasLoaded (" + level + ")");
-            if (level == 1 && !alreadyLoaded)
+            if (level == (Application.platform == RuntimePlatform.WindowsPlayer ? 1 : 2) && !alreadyLoaded)
             {
                 alreadyLoaded = true;
 
